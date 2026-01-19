@@ -1,7 +1,8 @@
 pipeline {
   agent {
     docker {
-      image 'node:20-bullseye'
+      // Includes docker CLI already; no apt-get required
+      image 'docker:27-cli'
       args  '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
       reuseNode true
     }
@@ -16,20 +17,21 @@ pipeline {
       steps { checkout scm }
     }
 
-    stage('Install Tools') {
+    stage('Install Node + Compose') {
       steps {
         sh '''
           set -eux
-          apt-get update
-          apt-get install -y docker.io curl
 
-          curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
-          chmod +x /usr/local/bin/docker-compose
+          # Install node + npm (alpine)
+          apk add --no-cache nodejs npm curl
+
+          # Install docker compose plugin (alpine package)
+          apk add --no-cache docker-cli-compose
 
           node -v
           npm -v
-          docker --version
-          docker-compose version
+          docker version
+          docker compose version
         '''
       }
     }
@@ -60,9 +62,9 @@ pipeline {
       steps {
         sh '''
           set -eux
-          docker-compose -f ${COMPOSE_FILE} down || true
-          docker-compose -f ${COMPOSE_FILE} build --no-cache
-          docker-compose -f ${COMPOSE_FILE} up -d
+          docker compose -f ${COMPOSE_FILE} down || true
+          docker compose -f ${COMPOSE_FILE} build --no-cache
+          docker compose -f ${COMPOSE_FILE} up -d
 
           chmod +x ci/scripts/wait-for-http.sh ci/scripts/smoke-test.sh
           ci/scripts/wait-for-http.sh http://localhost:8081/ 60
