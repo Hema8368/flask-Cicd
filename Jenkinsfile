@@ -77,7 +77,7 @@ pipeline {
 
   post {
     always {
-      sh 'echo "Pipeline finished"'
+      sh 'echo "Build finished"'
     }
   }
 }
